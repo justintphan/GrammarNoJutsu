@@ -40,8 +40,8 @@ A modern desktop application built with Tauri, React, and TypeScript that helps 
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd language-assistant
+   git clone [https://github.com/justintphan/GrammarNoJutsu.git](https://github.com/justintphan/GrammarNoJutsu.git)
+   cd GrammarNoJutsu
    ```
 
 2. **Install dependencies**
