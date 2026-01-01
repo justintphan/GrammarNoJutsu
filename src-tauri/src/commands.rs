@@ -1,5 +1,4 @@
 use tauri::{AppHandle, Manager};
-use tauri_plugin_log::log;
 use tauri_plugin_store::StoreExt;
 
 fn get_api_key_from_keyring(provider_id: &str) -> Result<String, String> {
