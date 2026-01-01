@@ -9,9 +9,10 @@ export const useExecuteTask = () => {
     const [loading, setLoading] = useState(false);
     
     const executeTask = async (params: {taskId: string, providerId: string, model: string, input: string}) => {
+        setLoading(true);
         try {
-            setLoading(true);
-            return invoke<ExecuteTaskResponse>("execute_task", params);            
+            const res = await invoke<ExecuteTaskResponse>("execute_task", params);                        
+            return res;            
         } finally {
             setLoading(false);
         }
