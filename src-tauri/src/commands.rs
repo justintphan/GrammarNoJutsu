@@ -1,8 +1,9 @@
 use tauri::{AppHandle, Manager};
+use tauri_plugin_log::log;
 use tauri_plugin_store::StoreExt;
 
 fn get_api_key_from_keyring(provider_id: &str) -> Result<String, String> {
-    let service_name = format!("language-assistant-{}", provider_id);
+    let service_name = format!("GrammarNoJutsu-{}", provider_id);
     let entry = keyring::Entry::new(&service_name, provider_id).map_err(|e| e.to_string())?;
     entry.get_password().map_err(|e| e.to_string())
 }

@@ -106,28 +106,24 @@ pub async fn gemini(
         .map_err(|e| e.to_string())?;
 
     if !res.status().is_success() {
-        let error_text = res
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("OpenAI API error: {}", error_text));
-    }
-
-    if !res.status().is_success() {
-        let error_text = res
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("OpenAI API error: {}", error_text));
+        let text: String = res.text().await.map_err(|e| e.to_string())?;
+        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        
+        let error_message = json.
+            get("error")
+            .and_then(|e| e.get("message"))
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown error");
+        return Err(error_message.to_string());
     }
 
     let text = res.text().await.map_err(|e| e.to_string())?;
     let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+
     let content = json
         .get("candidates")
         .and_then(|c| c.get(0))
-        .and_then(|c| c.get("content"))
-        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("content"))        
         .and_then(|c| c.get("parts"))
         .and_then(|c| c.get(0))
         .and_then(|c| c.get("text"))
@@ -138,4 +134,6 @@ pub async fn gemini(
         "content": content
     }))
 }
+
+
 
