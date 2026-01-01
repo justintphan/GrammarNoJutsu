@@ -34,8 +34,10 @@ export default function ManageAI({
   const selectedProvider = providers.find((p) => p.id === selectedProviderId);
 
   useEffect(() => {
-    setSelectedProviderId(providers[0]?.id || '');
-  }, [providers]);
+    if (!selectedProviderId) {
+      setSelectedProviderId(providers[0]?.id || '');
+    }   
+  }, [providers, selectedProviderId]);
 
   const handleUpdateProvider = (
     field: keyof AiProvider,

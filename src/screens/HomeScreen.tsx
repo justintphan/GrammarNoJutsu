@@ -14,6 +14,7 @@ import { Copy, RotateCcw, Sparkles, Loader2 } from "lucide-react";
 import { useTasks } from "@/contexts/TaskContext/TaskContext";
 import { Model } from "@/hooks/useGetAiModels";
 import { useExecuteTask } from "@/hooks/useExecuteTask";
+import { toast } from "sonner";
 
 export default function HomeScreen() {
   const { tasks } = useTasks();
@@ -48,9 +49,10 @@ export default function HomeScreen() {
         input: inputText 
       });
       
-      setOutputText(res.content);
+      setOutputText(res?.content);
     } catch (error) {
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : error?.toString() || "An error occurred";
+      toast.error(errorMessage);
     }
   };
 
@@ -70,7 +72,7 @@ export default function HomeScreen() {
       <header className="shrink-0 bg-[#2A2A2A] border-b border-[#3A3A3A] px-6 py-3.5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-normal text-white">Language Assistant</h1>
+            {/* <h1 className="text-base font-normal text-white">Language Assistant</h1> */}
           </div>
           <div className="flex items-center gap-4">
             <AppSettings />

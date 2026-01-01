@@ -7,11 +7,14 @@ interface ExecuteTaskResponse {
 
 export const useExecuteTask = () => {
     const [loading, setLoading] = useState(false);
+    
     const executeTask = async (params: {taskId: string, providerId: string, model: string, input: string}) => {
-        setLoading(true);
-        const result = await invoke<ExecuteTaskResponse>("execute_task", params);
-        setLoading(false);
-        return result;
+        try {
+            setLoading(true);
+            return invoke<ExecuteTaskResponse>("execute_task", params);            
+        } finally {
+            setLoading(false);
+        }
     }   
 
     return { executeTask, loading };
