@@ -129,7 +129,7 @@ pub fn save_ai_providers(app: AppHandle, mut providers: serde_json::Value) -> Re
             if let Some(provider_obj) = provider.as_object_mut() {
                 if let Some(id) = provider_obj.get("id").and_then(|i| i.as_str()) {
                     if let Some(api_key) = provider_obj.get("apiKey").and_then(|k| k.as_str()) {
-                        let service_name = format!("language-assistant-{}", id);
+                        let service_name = format!("GrammarNoJutsu-{}", id);
                         let entry =
                             keyring::Entry::new(&service_name, id).map_err(|e| e.to_string())?;
 
@@ -182,9 +182,8 @@ pub async fn execute_task(
         .map_err(|_| format!("API key for provider {} is missing", provider_id))?;
 
     match provider_id {
-        "openai" => {
-            crate::ai::openai::responses(model, &task_description, input, &api_key).await
-        }
+        "openai" => crate::ai::openai(model, &task_description, input, &api_key).await,
+        "google-gemini" => crate::ai::gemini(model, &task_description, input, &api_key).await,
         _ => Err(format!("Provider {} not supported yet", provider_id)),
     }
 }
