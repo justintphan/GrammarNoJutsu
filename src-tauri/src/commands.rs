@@ -190,6 +190,7 @@ pub async fn execute_task(
     match provider_id {
         "openai" => crate::ai::openai(model, &task_description, input, &api_key).await,
         "google-gemini" => crate::ai::gemini(model, &task_description, input, &api_key).await,
+        "anthropic" => crate::ai::anthropic(model, &task_description, input, &api_key).await,
         _ => Err(format!("Provider {} not supported yet", provider_id)),
     }
 }

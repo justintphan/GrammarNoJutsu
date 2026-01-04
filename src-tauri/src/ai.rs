@@ -134,3 +134,69 @@ pub async fn gemini(
         "content": content
     }))
 }
+
+pub async fn anthropic(
+    model: &str,
+    instructions: &str,
+    input: &str,
+    api_key: &str,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert("x-api-key", api_key.to_string().parse().unwrap());
+    headers.insert("Content-Type", "application/json".parse().unwrap());
+    headers.insert("anthropic-version", "2023-06-01".parse().unwrap());
+
+    let user_message = if !instructions.is_empty() {
+        format!("{}\n\n{}", instructions, input)
+    } else {
+        input.to_string()
+    };
+
+    let body = serde_json::json!({
+        "model": model,
+        "max_tokens": 4096,
+        "messages": [
+            {
+                "role": "user",
+                "content": user_message
+            }
+        ]
+    });
+
+    let res = client
+        .post("https://api.anthropic.com/v1/messages")
+        .headers(headers)
+        .body(serde_json::to_string(&body).map_err(|e| e.to_string())?)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !res.status().is_success() {
+        let text: String = res.text().await.map_err(|e| e.to_string())?;
+        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+
+        let error_message = json
+            .get("error")
+            .and_then(|e| e.get("message"))
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown error");
+        return Err(error_message.to_string());
+    }
+
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+
+    let content = json
+        .get("content")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("text"))
+        .and_then(|c| c.as_str())
+        .ok_or("Failed to extract content from response")?;
+
+    Ok(serde_json::json!({
+        "content": content
+    }))
+}
+
+
