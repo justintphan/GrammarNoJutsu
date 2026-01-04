@@ -58,7 +58,7 @@ pub async fn openai(
         .and_then(|c| c.get(0))
         .and_then(|c| c.get("text"))
         .and_then(|c| c.as_str())
-         .ok_or("Failed to extract content from response")?;
+        .ok_or("Failed to extract content from response")?;
 
     Ok(serde_json::json!({
         "content": content
@@ -73,14 +73,11 @@ pub async fn gemini(
 ) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        "x-goog-api-key",
-        api_key.to_string().parse().unwrap(),
-    );
+    headers.insert("x-goog-api-key", api_key.to_string().parse().unwrap());
     headers.insert("Content-Type", "application/json".parse().unwrap());
 
     let prompt = if !instructions.is_empty() {
-        format!("{}\n\n{}", instructions, input) 
+        format!("{}\n\n{}", instructions, input)
     } else {
         input.to_string()
     };
@@ -98,7 +95,10 @@ pub async fn gemini(
     });
 
     let res = client
-        .post(format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", model))
+        .post(format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            model
+        ))
         .headers(headers)
         .body(serde_json::to_string(&body).map_err(|e| e.to_string())?)
         .send()
@@ -108,9 +108,9 @@ pub async fn gemini(
     if !res.status().is_success() {
         let text: String = res.text().await.map_err(|e| e.to_string())?;
         let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-        
-        let error_message = json.
-            get("error")
+
+        let error_message = json
+            .get("error")
             .and_then(|e| e.get("message"))
             .and_then(|m| m.as_str())
             .unwrap_or("Unknown error");
@@ -123,17 +123,14 @@ pub async fn gemini(
     let content = json
         .get("candidates")
         .and_then(|c| c.get(0))
-        .and_then(|c| c.get("content"))        
+        .and_then(|c| c.get("content"))
         .and_then(|c| c.get("parts"))
         .and_then(|c| c.get(0))
         .and_then(|c| c.get("text"))
         .and_then(|c| c.as_str())
-         .ok_or("Failed to extract content from response")?;
+        .ok_or("Failed to extract content from response")?;
 
     Ok(serde_json::json!({
         "content": content
     }))
 }
-
-
-

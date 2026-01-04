@@ -1,10 +1,27 @@
 use tauri::{AppHandle, Manager};
 use tauri_plugin_store::StoreExt;
 
-fn get_api_key_from_keyring(provider_id: &str) -> Result<String, String> {
-    let service_name = format!("GrammarNoJutsu-{}", provider_id);
-    let entry = keyring::Entry::new(&service_name, provider_id).map_err(|e| e.to_string())?;
-    entry.get_password().map_err(|e| e.to_string())
+use crate::crypto::{decrypt_api_key, encrypt_api_key};
+
+fn get_decrypted_api_key(app: &AppHandle, provider_id: &str) -> Result<String, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let store_path = dir.join("store.json");
+    let store = app.store(store_path).map_err(|e| e.to_string())?;
+
+    let providers = store.get("ai_providers").ok_or("No providers found")?;
+    let providers_array = providers.as_array().ok_or("Invalid providers format")?;
+
+    for provider in providers_array {
+        if let Some(id) = provider.get("id").and_then(|i| i.as_str()) {
+            if id == provider_id {
+                if let Some(encrypted_key) = provider.get("encryptedApiKey").and_then(|k| k.as_str()) {
+                    return decrypt_api_key(encrypted_key);
+                }
+            }
+        }
+    }
+
+    Err(format!("API key for provider {} not found", provider_id))
 }
 
 #[tauri::command]
@@ -87,26 +104,17 @@ pub fn load_ai_providers(app: AppHandle) -> Result<serde_json::Value, String> {
             .get("ai_providers")
             .ok_or("No providers found".to_string())?;
 
-        // Load API keys from keyring for providers with empty keys
+        // Decrypt API keys for providers
         if let Some(providers_array) = value.as_array_mut() {
             for provider in providers_array.iter_mut() {
                 let Some(provider_obj) = provider.as_object_mut() else {
                     continue;
                 };
-                let Some(api_key) = provider_obj.get("apiKey").and_then(|k| k.as_str()) else {
-                    continue;
-                };
-                let Some(id) = provider_obj.get("id").and_then(|i| i.as_str()) else {
-                    continue;
-                };
 
-                if !api_key.is_empty() {
-                    continue;
-                };
-
-                if let Ok(stored_key) = get_api_key_from_keyring(id) {
-                    provider_obj
-                        .insert("apiKey".to_string(), serde_json::Value::String(stored_key));
+                if let Some(encrypted_key) = provider_obj.get("encryptedApiKey").and_then(|k| k.as_str()) {
+                    if let Ok(decrypted_key) = decrypt_api_key(encrypted_key) {
+                        provider_obj.insert("apiKey".to_string(), serde_json::Value::String(decrypted_key));
+                    }
                 }
             }
         }
@@ -123,29 +131,27 @@ pub fn save_ai_providers(app: AppHandle, mut providers: serde_json::Value) -> Re
 
     let store = app.store(store_path).map_err(|e| e.to_string())?;
 
-    // Store API keys in keyring and remove from JSON for security
+    // Encrypt API keys and store in JSON
     if let Some(providers_array) = providers.as_array_mut() {
         for provider in providers_array.iter_mut() {
             if let Some(provider_obj) = provider.as_object_mut() {
-                if let Some(id) = provider_obj.get("id").and_then(|i| i.as_str()) {
-                    if let Some(api_key) = provider_obj.get("apiKey").and_then(|k| k.as_str()) {
-                        let service_name = format!("GrammarNoJutsu-{}", id);
-                        let entry =
-                            keyring::Entry::new(&service_name, id).map_err(|e| e.to_string())?;
-
-                        if !api_key.is_empty() {
-                            // Store non-empty API key in keyring
-                            entry.set_password(api_key).map_err(|e| e.to_string())?;
-                            // Clear from JSON for security
-                            provider_obj.insert(
-                                "apiKey".to_string(),
-                                serde_json::Value::String("".to_string()),
-                            );
-                        } else {
-                            // Remove empty API key from keyring
-                            let _ = entry.delete_credential();
-                        }
+                if let Some(api_key) = provider_obj.get("apiKey").and_then(|k| k.as_str()) {
+                    if !api_key.is_empty() {
+                        // Encrypt and store API key
+                        let encrypted_key = encrypt_api_key(api_key)?;
+                        provider_obj.insert(
+                            "encryptedApiKey".to_string(),
+                            serde_json::Value::String(encrypted_key),
+                        );
+                    } else {
+                        // Remove encrypted key if api key is empty
+                        provider_obj.remove("encryptedApiKey");
                     }
+                    // Clear plain text API key from storage
+                    provider_obj.insert(
+                        "apiKey".to_string(),
+                        serde_json::Value::String("".to_string()),
+                    );
                 }
             }
         }
@@ -178,7 +184,7 @@ pub async fn execute_task(
         .unwrap_or("")
         .to_string() + "\n\n!Important: Output only the text of the response, do not include any additional information or formatting.";
 
-    let api_key = get_api_key_from_keyring(provider_id)
+    let api_key = get_decrypted_api_key(&app, provider_id)
         .map_err(|_| format!("API key for provider {} is missing", provider_id))?;
 
     match provider_id {
