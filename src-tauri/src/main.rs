@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    language_assistant_lib::run()
+    grammar_no_jutsu_lib::run()
 }
